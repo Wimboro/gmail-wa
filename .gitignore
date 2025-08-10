@@ -45,3 +45,4 @@ token*.json
 .tmp/
 *.tgz
 .wwebjs_*
+.wwebjs_auth
