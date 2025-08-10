@@ -1,0 +1,28 @@
+2025/08/10-16:01:36.506 4f784 Reusing MANIFEST /home/wimboro/Project/gmail-wa/.wwebjs_auth/session-gmail-sheets-processor/Default/IndexedDB/https_web.whatsapp.com_0.indexeddb.leveldb/MANIFEST-000001
+2025/08/10-16:01:36.506 4f784 Recovering log #285
+2025/08/10-16:01:36.520 4f784 Reusing old log /home/wimboro/Project/gmail-wa/.wwebjs_auth/session-gmail-sheets-processor/Default/IndexedDB/https_web.whatsapp.com_0.indexeddb.leveldb/000285.log 
+2025/08/10-16:01:38.104 4f7c3 Level-0 table #293: started
+2025/08/10-16:01:38.109 4f7c3 Level-0 table #293: 339266 bytes OK
+2025/08/10-16:01:38.110 4f7c3 Delete type=0 #285
+2025/08/10-16:01:38.110 4f7c3 Manual compaction at level-0 from '\x00R\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00S\x00\x00\x00' @ 0 : 0; will stop at (end)
+2025/08/10-16:01:38.111 4f7c1 Level-0 table #295: started
+2025/08/10-16:01:38.111 4f7c1 Level-0 table #295: 446 bytes OK
+2025/08/10-16:01:38.112 4f7c1 Delete type=0 #292
+2025/08/10-16:01:38.112 4f7c1 Manual compaction at level-0 from '\x00S\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00T\x00\x00\x00' @ 0 : 0; will stop at '\x00S\x00\x00\x05' @ 997965 : 0
+2025/08/10-16:01:38.112 4f7c1 Compacting 1@0 + 1@1 files
+2025/08/10-16:01:38.118 4f7c1 Generated table #296@0: 7658 keys, 162132 bytes
+2025/08/10-16:01:38.118 4f7c1 Compacted 1@0 + 1@1 files => 162132 bytes
+2025/08/10-16:01:38.119 4f7c1 compacted to: files[ 0 1 3 0 0 0 0 ]
+2025/08/10-16:01:38.119 4f7c1 Delete type=2 #295
+2025/08/10-16:01:38.119 4f7c3 Manual compaction at level-0 from '\x00S\x00\x00\x05' @ 997965 : 0 .. '\x00T\x00\x00\x00' @ 0 : 0; will stop at (end)
+2025/08/10-16:01:39.213 4f7c1 Compacting 1@1 + 3@2 files
+2025/08/10-16:01:39.311 4f7c1 Generated table #297@1: 29446 keys, 2189861 bytes
+2025/08/10-16:01:39.341 4f7c1 Generated table #298@1: 62353 keys, 2208647 bytes
+2025/08/10-16:01:39.372 4f7c1 Generated table #299@1: 75935 keys, 1460611 bytes
+2025/08/10-16:01:39.372 4f7c1 Compacted 1@1 + 3@2 files => 5859119 bytes
+2025/08/10-16:01:39.373 4f7c1 compacted to: files[ 0 0 3 0 0 0 0 ]
+2025/08/10-16:01:39.373 4f7c1 Delete type=2 #289
+2025/08/10-16:01:39.373 4f7c1 Delete type=2 #296
+2025/08/10-16:01:39.373 4f7c1 Delete type=2 #290
+2025/08/10-16:01:39.373 4f7c1 Delete type=2 #288
+2025/08/10-16:01:39.373 4f7c1 Delete type=2 #293

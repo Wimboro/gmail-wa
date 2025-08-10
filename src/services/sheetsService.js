@@ -63,8 +63,8 @@ export async function getExistingData(sheetsService, spreadsheetId, sheetRange) 
       return [];
     }
     
-    // Match the column structure
-    const headers = ['date', 'amount', 'category', 'description', 'user_id', 'timestamp'];
+    // Match the new column structure: Date, Amount, Category, Description, Bank, Timestamp
+    const headers = ['date', 'amount', 'category', 'description', 'bank', 'timestamp'];
     const existingData = [];
     
     // Skip header row
@@ -101,7 +101,7 @@ export async function getExistingData(sheetsService, spreadsheetId, sheetRange) 
  */
 export function isDuplicate(newEntry, existingEntries) {
   // Define fields that uniquely identify a transaction
-  const keyFields = ['date', 'amount', 'category', 'description'];
+  const keyFields = ['date', 'amount', 'category', 'description', 'bank'];
   
   for (const existing of existingEntries) {
     // Check if all key fields match (case insensitive)
@@ -131,7 +131,7 @@ export function isDuplicate(newEntry, existingEntries) {
  * @param {string} userId - User ID for the processor
  * @returns {Array} - Formatted row for Google Sheets
  */
-export function createDataRow(transactionData, userId) {
+export function createDataRow(transactionData) {
   const now = new Date();
   const timestamp = now.toISOString().replace('T', ' ').substring(0, 19);
   
@@ -140,7 +140,7 @@ export function createDataRow(transactionData, userId) {
     transactionData.amount || 0,
     transactionData.category || 'Lainnya',
     transactionData.description || '',
-    userId,
+    transactionData.bank || '',
     timestamp
   ];
 }
@@ -150,7 +150,7 @@ export function createDataRow(transactionData, userId) {
  * @returns {Array} - Header row
  */
 export function getHeaderRow() {
-  return ['Date', 'Amount', 'Category', 'Description', 'User ID', 'Timestamp'];
+  return ['Date', 'Amount', 'Category', 'Description', 'Bank', 'Timestamp'];
 }
 
 /**

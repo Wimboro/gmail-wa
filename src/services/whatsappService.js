@@ -329,6 +329,7 @@ function formatTransactionMessage(transaction, accountId) {
   return `${emoji} *TRANSAKSI BARU*
 
 📧 *Akun:* ${accountId}
+🏦 *Bank:* ${transaction.bank || 'Tidak diketahui'}
 📊 *Jenis:* ${type}
 💵 *Jumlah:* Rp ${amount}
 🏷️ *Kategori:* ${transaction.category}

@@ -47,6 +47,79 @@ export const CONFIG = {
   EMAIL_CHECK_INTERVAL_MINUTES: parseInt(process.env.EMAIL_CHECK_INTERVAL_MINUTES) || 5
 };
 
+// Bank Configuration
+export const BANK_ACCOUNTS = {
+  'Mandiri Wimboro': { owner: 'Wimboro', type: 'Mandiri' },
+  'Mandiri Fara': { owner: 'Fara', type: 'Mandiri' },
+  'Seabank Fara': { owner: 'Fara', type: 'Seabank' },
+  'Jago Fara': { owner: 'Fara', type: 'Jago' },
+  'Jago Wimboro': { owner: 'Wimboro', type: 'Jago' },
+  'Blu Fara': { owner: 'Fara', type: 'Blu' },
+  'Blu Wimboro': { owner: 'Wimboro', type: 'Blu' },
+  'Neobank Fara': { owner: 'Fara', type: 'Neobank' },
+  'Neobank Wimboro': { owner: 'Wimboro', type: 'Neobank' }
+};
+
+// Get list of all bank names
+export const BANK_NAMES = Object.keys(BANK_ACCOUNTS);
+
+/**
+ * Determine if transaction is income or expense based on bank context
+ * @param {string} bankName - Name of the bank
+ * @param {string} transactionText - Transaction description text
+ * @returns {string} - 'income' or 'expense'
+ */
+export function determineBankTransactionType(bankName, transactionText) {
+  const lowerText = transactionText.toLowerCase();
+  
+  // Income indicators when money comes TO our bank
+  const incomeKeywords = [
+    'terima', 'dapat', 'pemasukan', 'masuk', 'diterima', 'gaji', 'bonus',
+    'transfer masuk', 'kredit', 'setoran', 'received', 'credit', 'deposit', 'hadiah'
+  ];
+  
+  // Expense indicators when money goes FROM our bank
+  const expenseKeywords = [
+    'beli', 'bayar', 'belanja', 'pengeluaran', 'keluar', 'dibayar',
+    'transfer keluar', 'debit', 'tarik', 'withdraw', 'payment', 'purchase'
+  ];
+  
+  // Special cases that need context-based interpretation
+  // "pembayaran" could be income (receiving payment) or expense (making payment)
+  if (lowerText.includes('pembayaran')) {
+    // These are typically expenses (making payments)
+    if (lowerText.includes('kartu kredit') || lowerText.includes('credit card') ||
+        lowerText.includes('qris') || lowerText.includes('untuk') || 
+        lowerText.includes('tagihan') || lowerText.includes('bayar')) {
+      return 'expense';
+    }
+    // Otherwise could be receiving payment, so default to income
+    return 'income';
+  }
+  
+  // "penjualan" is typically income (selling something = receiving money)
+  if (lowerText.includes('penjualan') || lowerText.includes('jual')) {
+    return 'income';
+  }
+  
+  // Check for income indicators
+  for (const keyword of incomeKeywords) {
+    if (lowerText.includes(keyword)) {
+      return 'income';
+    }
+  }
+  
+  // Check for expense indicators  
+  for (const keyword of expenseKeywords) {
+    if (lowerText.includes(keyword)) {
+      return 'expense';
+    }
+  }
+  
+  // Default to expense if unclear
+  return 'expense';
+}
+
 // Validation
 export const validateConfig = () => {
   const required = [

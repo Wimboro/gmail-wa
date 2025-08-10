@@ -1,5 +1,5 @@
 import { GoogleGenAI } from '@google/genai';
-import { CONFIG } from '../../config/constants.js';
+import { CONFIG, BANK_NAMES, BANK_ACCOUNTS, determineBankTransactionType } from '../../config/constants.js';
 import { logger } from '../../utils/logger.js';
 
 let genAI = null;
@@ -45,10 +45,15 @@ export async function parseEmailWithGemini(emailText) {
     // Get current date for reference
     const currentDate = new Date().toISOString().split('T')[0];
     
+    // Get bank names for context
+    const bankList = BANK_NAMES.join(', ');
+    
     // Create a detailed prompt for Gemini
     const prompt = `
 Extract financial information from this Indonesian text: "${emailText}"
 Today's date is ${currentDate}.
+
+Available bank accounts: ${bankList}
 
 Return a JSON object with these fields:
 - amount: the monetary amount (numeric value only, without currency symbols)
@@ -56,20 +61,26 @@ Return a JSON object with these fields:
 - description: brief description of the transaction
 - transaction_type: "income" if this is money received, or "expense" if this is money spent
 - date: the date of the transaction in YYYY-MM-DD format
+- bank: the bank account name from the available list above (exact match required)
 
 For the date field, if no specific date is mentioned, use today's date (${currentDate}).
 
+For the bank field, identify which bank account is mentioned in the text. Look for bank names like:
+- Mandiri, Seabank, Jago, Blu, Neobank
+- And owner names like Wimboro or Fara
+- Match to the exact format from the available bank accounts list above
+
 For transaction_type, analyze the context carefully:
-- INCOME indicators (set to "income"): "terima", "dapat", "pemasukan", "masuk", "diterima", "gaji", "bonus", etc.
-- EXPENSE indicators (set to "expense"): "beli", "bayar", "belanja", "pengeluaran", "keluar", "dibayar", etc.
+- INCOME indicators (set to "income"): "terima", "dapat", "pemasukan", "masuk", "diterima", "gaji", "bonus", "transfer masuk", "kredit", etc.
+- EXPENSE indicators (set to "expense"): "beli", "bayar", "belanja", "pengeluaran", "keluar", "dibayar", "transfer keluar", "debit", etc.
 
-If transaction_type is "income", amount should be positive. If "expense", amount should be negative.
-
-If still unclear, default to "expense".
+Context for bank transactions:
+- If money comes TO the bank account = "income" (positive amount)
+- If money goes FROM the bank account = "expense" (negative amount)
 
 For category, try to identify specific categories like:
-- Income categories: "Gaji", "Bonus", "Investasi", "Hadiah", "Penjualan", "Bisnis"
-- Expense categories: "Makanan", "Transportasi", "Belanja", "Hiburan", "Tagihan", "Kesehatan", "Pendidikan"
+- Income categories: "Gaji", "Bonus", "Investasi", "Hadiah", "Penjualan", "Bisnis", "Transfer Masuk"
+- Expense categories: "Makanan", "Transportasi", "Belanja", "Hiburan", "Tagihan", "Kesehatan", "Pendidikan", "Transfer Keluar"
 
 If any field is unclear, set it to null.
 

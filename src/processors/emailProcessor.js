@@ -2,6 +2,7 @@ import { authenticateGmail, getGmailService } from '../auth/gmailAuth.js';
 import { authenticateSheets, getSheetsService } from '../auth/sheetsAuth.js';
 import { getEmails, extractEmailBody, markEmailProcessed, getEmailHeaders } from '../services/gmailService.js';
 import { parseEmailWithGemini } from '../services/geminiService.js';
+import { parseEmailWithEnhancedGemini } from '../services/enhancedGeminiService.js';
 import { 
   appendToSheet, 
   getExistingData, 
@@ -81,8 +82,14 @@ export async function processGmailAccount(accountId) {
           continue;
         }
         
-        // Parse email with Gemini
-        const parsedData = await parseEmailWithGemini(emailBody);
+        // Parse email with Enhanced Gemini (fallback to original if needed)
+        let parsedData = await parseEmailWithEnhancedGemini(emailBody);
+        
+        // Fallback to original Gemini if enhanced parsing fails
+        if (!parsedData) {
+          logger.info('Enhanced parsing failed, trying original Gemini...');
+          parsedData = await parseEmailWithGemini(emailBody);
+        }
         
         if (!parsedData) {
           logger.warning(`Could not parse email ${messageId} with Gemini`);
@@ -92,12 +99,13 @@ export async function processGmailAccount(accountId) {
           continue;
         }
         
-        // Create entry for duplicate checking
+        // Create entry for duplicate checking and sheet insertion
         const entry = {
           date: parsedData.date || new Date().toISOString().split('T')[0],
           amount: parsedData.amount || 0,
           category: parsedData.category || 'Lainnya',
-          description: parsedData.description || ''
+          description: parsedData.description || '',
+          bank: parsedData.bank || ''
         };
         
         // Check if this transaction is already in the sheet
@@ -110,8 +118,8 @@ export async function processGmailAccount(accountId) {
           continue;
         }
         
-        // Create data row for Google Sheets
-        const dataRow = createDataRow(entry, emailProcessorUserId);
+        // Create data row for Google Sheets (no longer needs userId)
+        const dataRow = createDataRow(entry);
         allDataRows.push(dataRow);
         processedTransactions.push(entry);
         
