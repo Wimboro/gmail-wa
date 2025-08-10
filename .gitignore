@@ -1,0 +1,46 @@
+# Node
+node_modules/
+.npm/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-error.log
+pnpm-debug.log
+output.log
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Env & local config
+.env
+.env.*
+*.local
+
+# Build outputs
+/dist/
+/build/
+/.cache/
+coverage/
+
+# Editors/OS
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Credentials & tokens (DO NOT COMMIT)
+credentials.json
+sa-credentials.json
+
+token_*.json
+token*.json
+
+# Misc
+.tmp/
+*.tgz

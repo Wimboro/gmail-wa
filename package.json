@@ -1,0 +1,34 @@
+{
+  "name": "gmail-sheets-whatsapp-js",
+  "version": "1.1.0",
+  "description": "Gmail to Google Sheets automation with WhatsApp notifications using Gemini AI",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "setup": "node setup.js",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "test-genai": "node test-genai.js"
+  },
+  "keywords": [
+    "gmail",
+    "google-sheets",
+    "whatsapp",
+    "gemini-ai",
+    "automation",
+    "financial-tracking"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@google/genai": "^0.3.0",
+    "dotenv": "^16.4.7",
+    "googleapis": "^144.0.0",
+    "qrcode-terminal": "^0.12.0",
+    "whatsapp-web.js": "^1.25.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
