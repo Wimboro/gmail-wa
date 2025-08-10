@@ -44,3 +44,4 @@ token*.json
 # Misc
 .tmp/
 *.tgz
+.wwebjs_*
