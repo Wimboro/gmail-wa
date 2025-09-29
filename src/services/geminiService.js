@@ -79,8 +79,8 @@ Context for bank transactions:
 - If money goes FROM the bank account = "expense" (negative amount)
 
 For category, try to identify specific categories like:
-- Income categories: "Gaji", "Bonus", "Investasi", "Hadiah", "Penjualan", "Bisnis", "Transfer Masuk"
-- Expense categories: "Makanan", "Transportasi", "Belanja", "Hiburan", "Tagihan", "Kesehatan", "Pendidikan", "Transfer Keluar"
+- Income category: "Gaji", "Bonus", "Komisi", "Investasi", "Hadiah", "Penjualan", "Refund", "Kembalian", "Cashback"
+- Expense category: "Sedekah", "Makanan", "Transportasi", "Reimburse", "Hiburan", "Kesehatan", "Rumah Tangga", "Pakaian", "Kecantikan", "Pengembangan Keluarga"
 
 If any field is unclear, set it to null.
 

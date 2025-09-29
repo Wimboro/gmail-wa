@@ -38,6 +38,9 @@ export const CONFIG = {
   WHATSAPP_GROUP_ID: process.env.WHATSAPP_GROUP_ID || '',
   ENABLE_WHATSAPP_NOTIFICATIONS: process.env.ENABLE_WHATSAPP_NOTIFICATIONS === 'true',
   BATCH_NOTIFICATION_THRESHOLD: parseInt(process.env.BATCH_NOTIFICATION_THRESHOLD) || 5,
+  WAHA_BASE_URL: process.env.WAHA_BASE_URL || '',
+  WAHA_API_KEY: process.env.WAHA_API_KEY || '',
+  WAHA_SESSION_NAME: process.env.WAHA_SESSION_NAME || 'gmail-wa-bot',
   
   // Application
   PROCESSOR_USER_ID: process.env.PROCESSOR_USER_ID || 'email-processor-main',
@@ -136,7 +139,18 @@ export const validateConfig = () => {
   if (CONFIG.GMAIL_ACCOUNTS.length === 0) {
     throw new Error('At least one Gmail account must be specified');
   }
-  
+
+  if (CONFIG.ENABLE_WHATSAPP_NOTIFICATIONS) {
+    const missingWAHA = [];
+    if (!CONFIG.WAHA_BASE_URL) missingWAHA.push('WAHA_BASE_URL');
+    if (!CONFIG.WAHA_API_KEY) missingWAHA.push('WAHA_API_KEY');
+    if (!CONFIG.WAHA_SESSION_NAME) missingWAHA.push('WAHA_SESSION_NAME');
+
+    if (missingWAHA.length > 0) {
+      throw new Error(`Missing required environment variables for WAHA WhatsApp integration: ${missingWAHA.join(', ')}`);
+    }
+  }
+
   console.log('✅ Configuration validated successfully');
   return true;
-}; 
+};

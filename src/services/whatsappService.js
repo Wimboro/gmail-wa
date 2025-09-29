@@ -1,114 +1,243 @@
-import pkg from 'whatsapp-web.js';
-const { Client, LocalAuth } = pkg;
-import qrcode from 'qrcode-terminal';
+import axios from 'axios';
 import { CONFIG } from '../../config/constants.js';
 import { logger } from '../../utils/logger.js';
 
-let whatsappClient = null;
-let isClientReady = false;
-let isInitializing = false;
+let wahaClient = null;
+let sessionCache = null;
+let initializationPromise = null;
+
+function ensureWAHAClient() {
+  if (wahaClient) {
+    return wahaClient;
+  }
+
+  const baseUrl = (CONFIG.WAHA_BASE_URL || '').trim();
+  if (!baseUrl) {
+    throw new Error('WAHA_BASE_URL is not configured');
+  }
+
+  if (!CONFIG.WAHA_API_KEY) {
+    throw new Error('WAHA_API_KEY is not configured');
+  }
+
+  wahaClient = axios.create({
+    baseURL: baseUrl.replace(/\/+$/, ''),
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Api-Key': CONFIG.WAHA_API_KEY
+    },
+    timeout: 20000
+  });
+
+  return wahaClient;
+}
+
+function describeAxiosError(error) {
+  if (error.response) {
+    const { status, data } = error.response;
+    const details = typeof data === 'string' ? data : JSON.stringify(data);
+    return `${status} ${details}`;
+  }
+
+  if (error.request) {
+    return 'No response received from WAHA server';
+  }
+
+  return error.message;
+}
+
+async function ensureSessionStarted(client) {
+  const sessionName = CONFIG.WAHA_SESSION_NAME;
+
+  try {
+    const { data } = await client.post('/api/sessions/start', {
+      name: sessionName,
+      config: {
+        noweb: {
+          store: {
+            enabled: true,
+            fullSync: false
+          }
+        }
+      }
+    });
+
+    logger.success(`WAHA session '${sessionName}' started`);
+    sessionCache = data;
+    return data;
+  } catch (error) {
+    const message = error.response?.data?.message || '';
+    const alreadyStarted = error.response?.status === 422 && typeof message === 'string' && message.includes('already started');
+
+    if (alreadyStarted) {
+      logger.debug(`WAHA session '${sessionName}' already active`);
+      return null;
+    }
+
+    logger.error(`Failed to start WAHA session '${sessionName}': ${describeAxiosError(error)}`);
+    throw error;
+  }
+}
+
+async function fetchSessionStatus(client) {
+  const sessionName = CONFIG.WAHA_SESSION_NAME;
+
+  try {
+    const { data } = await client.get(`/api/sessions/${encodeURIComponent(sessionName)}`);
+    sessionCache = data;
+    logger.debug(`WAHA session status: ${data.status}`);
+    return data;
+  } catch (error) {
+    logger.error(`Failed to fetch WAHA session status: ${describeAxiosError(error)}`);
+    throw error;
+  }
+}
+
+async function sendWAHAMessage(chatId, text) {
+  const client = ensureWAHAClient();
+
+  try {
+    const { data } = await client.post('/api/sendText', {
+      session: CONFIG.WAHA_SESSION_NAME,
+      chatId,
+      text
+    });
+
+    return data;
+  } catch (error) {
+    const detail = describeAxiosError(error);
+    const wrappedError = new Error(`WAHA sendText failed for ${chatId}: ${detail}`);
+    wrappedError.cause = error;
+    throw wrappedError;
+  }
+}
+
+function formatPhoneNumber(phoneNumber) {
+  if (!phoneNumber) {
+    return null;
+  }
+
+  let formatted = phoneNumber.toString().trim();
+  if (!formatted) {
+    return null;
+  }
+
+  if (formatted.startsWith('+')) {
+    formatted = formatted.substring(1);
+  } else if (!formatted.startsWith('62') && !formatted.startsWith('1')) {
+    formatted = '62' + formatted.replace(/^0/, '');
+  }
+
+  return formatted;
+}
+
+function buildNotificationTargets() {
+  const targets = [];
+  const configuredNumbers = Array.isArray(CONFIG.WHATSAPP_PHONE_NUMBERS)
+    ? CONFIG.WHATSAPP_PHONE_NUMBERS
+    : CONFIG.WHATSAPP_PHONE_NUMBERS
+      ? [CONFIG.WHATSAPP_PHONE_NUMBERS]
+      : [];
+
+  for (const phoneNumber of configuredNumbers) {
+    const formatted = formatPhoneNumber(phoneNumber);
+
+    if (!formatted) {
+      logger.warning('Invalid phone number configured for WhatsApp notifications, skipping');
+      continue;
+    }
+
+    targets.push({
+      chatId: `${formatted}@c.us`,
+      displayName: phoneNumber,
+      type: 'contact'
+    });
+  }
+
+  if (CONFIG.WHATSAPP_GROUP_ID && CONFIG.WHATSAPP_GROUP_ID.trim() !== '') {
+    let groupId = CONFIG.WHATSAPP_GROUP_ID.trim();
+    if (!groupId.endsWith('@g.us')) {
+      groupId = `${groupId}@g.us`;
+    }
+
+    targets.push({
+      chatId: groupId,
+      displayName: 'Group',
+      type: 'group'
+    });
+  }
+
+  return targets;
+}
+
+function buildBatchTargets() {
+  const targets = [];
+
+  if (CONFIG.WHATSAPP_GROUP_ID && CONFIG.WHATSAPP_GROUP_ID.trim() !== '') {
+    let groupId = CONFIG.WHATSAPP_GROUP_ID.trim();
+    if (!groupId.endsWith('@g.us')) {
+      groupId = `${groupId}@g.us`;
+    }
+
+    targets.push({ chatId: groupId, type: 'group', displayName: groupId });
+    return targets;
+  }
+
+  const configuredNumbers = Array.isArray(CONFIG.WHATSAPP_PHONE_NUMBERS)
+    ? CONFIG.WHATSAPP_PHONE_NUMBERS
+    : CONFIG.WHATSAPP_PHONE_NUMBERS
+      ? [CONFIG.WHATSAPP_PHONE_NUMBERS]
+      : [];
+
+  for (const phoneNumber of configuredNumbers) {
+    const formatted = formatPhoneNumber(phoneNumber);
+
+    if (!formatted) {
+      continue;
+    }
+
+    targets.push({ chatId: `${formatted}@c.us`, type: 'contact', displayName: phoneNumber });
+  }
+
+  return targets;
+}
 
 /**
- * Initialize WhatsApp client
- * @returns {Promise<Client>} - WhatsApp client instance
+ * Initialize WAHA WhatsApp session
+ * @returns {Promise<object|null>} - WAHA session status information
  */
 export async function initializeWhatsApp() {
+  if (!CONFIG.ENABLE_WHATSAPP_NOTIFICATIONS) {
+    logger.debug('WhatsApp notifications are disabled; skipping WAHA initialization');
+    return null;
+  }
+
+  if (initializationPromise) {
+    logger.debug('WAHA initialization already in progress, awaiting existing operation');
+    return initializationPromise;
+  }
+
+  const client = ensureWAHAClient();
+
+  initializationPromise = (async () => {
+    await ensureSessionStarted(client);
+    const status = await fetchSessionStatus(client);
+
+    if (status?.status === 'SCAN_QR_CODE') {
+      logger.warning('WAHA session waiting for QR scan. Please open the WAHA dashboard and authenticate the session.');
+    } else if (status?.status === 'CONNECTED') {
+      logger.success('WAHA session connected and ready to send messages');
+    } else {
+      logger.info(`WAHA session status: ${status?.status || 'UNKNOWN'}`);
+    }
+
+    return status;
+  })();
+
   try {
-    if (whatsappClient && isClientReady) {
-      logger.debug('WhatsApp client already ready');
-      return whatsappClient;
-    }
-    
-    if (isInitializing) {
-      logger.debug('WhatsApp client already initializing, waiting...');
-      // Wait for initialization to complete
-      while (isInitializing && !isClientReady) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      }
-      return whatsappClient;
-    }
-    
-    isInitializing = true;
-    logger.info('Initializing WhatsApp client...');
-    
-    whatsappClient = new Client({
-      authStrategy: new LocalAuth({
-        clientId: 'gmail-sheets-processor'
-      }),
-      puppeteer: {
-        headless: true,
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-accelerated-2d-canvas',
-          '--no-first-run',
-          '--no-zygote',
-          '--single-process',
-          '--disable-gpu'
-        ]
-      }
-    });
-    
-    // Event handlers
-    whatsappClient.on('qr', (qr) => {
-      logger.info('WhatsApp QR Code received. Scan it with your phone:');
-      qrcode.generate(qr, { small: true });
-      logger.info('After scanning, the client will be ready to send messages.');
-    });
-    
-    whatsappClient.on('ready', () => {
-      isClientReady = true;
-      isInitializing = false;
-      logger.success('WhatsApp client is ready!');
-    });
-    
-    whatsappClient.on('authenticated', () => {
-      logger.success('WhatsApp client authenticated');
-    });
-    
-    whatsappClient.on('auth_failure', (msg) => {
-      logger.error('WhatsApp authentication failed:', msg);
-      isClientReady = false;
-      isInitializing = false;
-    });
-    
-    whatsappClient.on('disconnected', (reason) => {
-      logger.warning('WhatsApp client disconnected:', reason);
-      isClientReady = false;
-      isInitializing = false;
-    });
-    
-    // Initialize the client
-    await whatsappClient.initialize();
-    
-    // Wait for client to be ready with timeout
-    if (!isClientReady) {
-      logger.info('Waiting for WhatsApp client to be ready...');
-      await new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          reject(new Error('WhatsApp client initialization timeout (60 seconds)'));
-        }, 60000); // 60 second timeout
-        
-        whatsappClient.on('ready', () => {
-          clearTimeout(timeout);
-          resolve();
-        });
-        
-        whatsappClient.on('auth_failure', (msg) => {
-          clearTimeout(timeout);
-          reject(new Error(`WhatsApp authentication failed: ${msg}`));
-        });
-      });
-    }
-    
-    isInitializing = false;
-    return whatsappClient;
-    
-  } catch (error) {
-    isInitializing = false;
-    logger.error('Error initializing WhatsApp client:', error.message);
-    throw error;
+    return await initializationPromise;
+  } finally {
+    initializationPromise = null;
   }
 }
 
@@ -118,114 +247,44 @@ export async function initializeWhatsApp() {
  * @param {string} accountId - Gmail account identifier
  */
 export async function sendWhatsAppNotification(transaction, accountId) {
-  logger.debug(`Attempting to send WhatsApp notification for transaction: ${transaction.description}`);
-  
+  logger.debug(`Attempting to send WAHA notification for transaction: ${transaction.description}`);
+
   if (!CONFIG.ENABLE_WHATSAPP_NOTIFICATIONS) {
     logger.debug('WhatsApp notifications are disabled');
     return;
   }
-  
-  if (!CONFIG.WHATSAPP_PHONE_NUMBERS || CONFIG.WHATSAPP_PHONE_NUMBERS.length === 0) {
-    logger.warning('No WhatsApp phone numbers configured');
+
+  const hasTargets = (CONFIG.WHATSAPP_PHONE_NUMBERS && CONFIG.WHATSAPP_PHONE_NUMBERS.length > 0) ||
+    (CONFIG.WHATSAPP_GROUP_ID && CONFIG.WHATSAPP_GROUP_ID.trim() !== '');
+
+  if (!hasTargets) {
+    logger.warning('No WhatsApp recipients configured');
     return;
   }
-  
+
   try {
-    if (!whatsappClient || !isClientReady) {
-      logger.info('WhatsApp client not ready, initializing...');
-      await initializeWhatsApp();
-    }
-    
-    if (!isClientReady) {
-      logger.error('WhatsApp client is not ready after initialization');
-      return;
-    }
-    
+    await initializeWhatsApp();
+
     const message = formatTransactionMessage(transaction, accountId);
     logger.debug(`Formatted message: ${message.substring(0, 100)}...`);
-    
-    // Determine targets: group or individual phone numbers
-    const targets = [];
-    
-    // Send to both individual numbers and group if both are configured
-    if (CONFIG.WHATSAPP_PHONE_NUMBERS && CONFIG.WHATSAPP_PHONE_NUMBERS.length > 0) {
-      // Send to individual phone numbers
-      const phoneNumbers = Array.isArray(CONFIG.WHATSAPP_PHONE_NUMBERS) 
-        ? CONFIG.WHATSAPP_PHONE_NUMBERS 
-        : [CONFIG.WHATSAPP_PHONE_NUMBERS];
-      
-      logger.debug(`Sending to phone numbers: ${phoneNumbers.join(', ')}`);
-      
-      for (const phoneNumber of phoneNumbers) {
-        if (!phoneNumber || phoneNumber.trim() === '') {
-          logger.warning('Empty phone number found, skipping');
-          continue;
-        }
-        
-        // Format phone number - ensure it starts with country code
-        let formattedNumber = phoneNumber.toString().trim();
-        if (!formattedNumber.startsWith('+')) {
-          // If number doesn't start with +, assume it already has country code
-          if (!formattedNumber.startsWith('62') && !formattedNumber.startsWith('1')) {
-            // Add Indonesia country code if no country code detected
-            formattedNumber = '62' + formattedNumber.replace(/^0/, '');
-          }
-        } else {
-          // Remove + from the beginning
-          formattedNumber = formattedNumber.substring(1);
-        }
-        
-        targets.push({
-          chatId: `${formattedNumber}@c.us`,
-          displayName: phoneNumber,
-          type: 'contact'
-        });
-      }
+
+    const targets = buildNotificationTargets();
+    if (targets.length === 0) {
+      logger.warning('No valid WhatsApp targets to send message to');
+      return;
     }
-    
-    // Also send to group if configured (in addition to individual numbers)
-    if (CONFIG.WHATSAPP_GROUP_ID && CONFIG.WHATSAPP_GROUP_ID.trim() !== '') {
-      let groupId = CONFIG.WHATSAPP_GROUP_ID.trim();
-      if (!groupId.endsWith('@g.us')) {
-        groupId = `${groupId}@g.us`;
-      }
-      
-      targets.push({
-        chatId: groupId,
-        displayName: 'Group',
-        type: 'group'
-      });
-      
-      logger.debug(`Sending to group: ${groupId}`);
-    }
-    
-    // Send to all targets
+
     for (const target of targets) {
       try {
-        logger.debug(`Sending message to ${target.type}: ${target.chatId}`);
-        
-        const result = await whatsappClient.sendMessage(target.chatId, message);
+        logger.debug(`Sending WAHA message to ${target.type}: ${target.chatId}`);
+        await sendWAHAMessage(target.chatId, message);
         logger.success(`WhatsApp notification sent to ${target.displayName} (${target.chatId})`);
-        logger.debug(`Message result: ${JSON.stringify(result, null, 2)}`);
-        
       } catch (error) {
-        logger.error(`Failed to send WhatsApp message to ${target.displayName}:`, error.message);
-        
-        // Try to get more specific error information
-        if (error.message.includes('not found')) {
-          if (target.type === 'group') {
-            logger.error(`Group ${target.displayName} not found. Make sure the bot is added to the group.`);
-          } else {
-            logger.error(`Phone number ${target.displayName} not found on WhatsApp`);
-          }
-        } else if (error.message.includes('invalid')) {
-          logger.error(`${target.type === 'group' ? 'Group ID' : 'Phone number'} ${target.displayName} appears to be invalid`);
-        }
+        logger.error(`Failed to send WhatsApp message to ${target.displayName}: ${error.message}`);
       }
     }
-    
   } catch (error) {
-    logger.error('Error sending WhatsApp notification:', error.message);
+    logger.error(`Error sending WhatsApp notification: ${error.message}`);
   }
 }
 
@@ -239,79 +298,33 @@ export async function sendBatchWhatsAppNotification(transactionCount, accountId)
     logger.debug('WhatsApp notifications are disabled');
     return;
   }
-  
-  if (!CONFIG.WHATSAPP_PHONE_NUMBERS || CONFIG.WHATSAPP_PHONE_NUMBERS.length === 0) {
-    if (!CONFIG.WHATSAPP_GROUP_ID) {
-      logger.warning('No WhatsApp phone numbers or group ID configured');
-      return;
-    }
+
+  if (!CONFIG.WHATSAPP_GROUP_ID && (!CONFIG.WHATSAPP_PHONE_NUMBERS || CONFIG.WHATSAPP_PHONE_NUMBERS.length === 0)) {
+    logger.warning('No WhatsApp group or phone numbers configured for batch notifications');
+    return;
   }
-  
+
   try {
-    if (!whatsappClient || !isClientReady) {
-      await initializeWhatsApp();
-    }
-    
-    if (!isClientReady) {
-      logger.error('WhatsApp client is not ready after initialization');
+    await initializeWhatsApp();
+
+    const message = formatBatchMessage(transactionCount, accountId);
+    const targets = buildBatchTargets();
+
+    if (targets.length === 0) {
+      logger.warning('No valid recipients for batch notification');
       return;
     }
-    
-    const message = formatBatchMessage(transactionCount, accountId);
-    
-    // Send to group if configured, otherwise to individual numbers
-    const targets = [];
-    
-    if (CONFIG.WHATSAPP_GROUP_ID && CONFIG.WHATSAPP_GROUP_ID.trim() !== '') {
-      // Format group ID properly
-      let groupId = CONFIG.WHATSAPP_GROUP_ID.trim();
-      if (!groupId.endsWith('@g.us')) {
-        groupId = `${groupId}@g.us`;
-      }
-      targets.push(groupId);
-      logger.debug(`Sending batch notification to group: ${groupId}`);
-    } else {
-      // Send to individual phone numbers
-      const phoneNumbers = Array.isArray(CONFIG.WHATSAPP_PHONE_NUMBERS) 
-        ? CONFIG.WHATSAPP_PHONE_NUMBERS 
-        : [CONFIG.WHATSAPP_PHONE_NUMBERS];
-      
-      for (const phoneNumber of phoneNumbers) {
-        if (phoneNumber && phoneNumber.trim() !== '') {
-          let formattedNumber = phoneNumber.toString().trim();
-          if (!formattedNumber.startsWith('+')) {
-            if (!formattedNumber.startsWith('62') && !formattedNumber.startsWith('1')) {
-              formattedNumber = '62' + formattedNumber.replace(/^0/, '');
-            }
-          } else {
-            formattedNumber = formattedNumber.substring(1);
-          }
-          targets.push(`${formattedNumber}@c.us`);
-        }
-      }
-    }
-    
+
     for (const target of targets) {
       try {
-        const result = await whatsappClient.sendMessage(target, message);
-        const targetType = target.includes('@g.us') ? 'group' : 'contact';
-        logger.success(`Batch WhatsApp notification sent to ${targetType} (${target})`);
-        logger.debug(`Batch message result: ${JSON.stringify(result, null, 2)}`);
+        await sendWAHAMessage(target.chatId, message);
+        logger.success(`Batch WhatsApp notification sent to ${target.type} (${target.chatId})`);
       } catch (error) {
-        logger.error(`Failed to send batch WhatsApp message to ${target}:`, error.message);
-        
-        if (error.message.includes('not found')) {
-          if (target.includes('@g.us')) {
-            logger.error(`Group ${target} not found. Make sure the bot is added to the group.`);
-          } else {
-            logger.error(`Contact ${target} not found on WhatsApp`);
-          }
-        }
+        logger.error(`Failed to send batch WhatsApp message to ${target.displayName}: ${error.message}`);
       }
     }
-    
   } catch (error) {
-    logger.error('Error sending batch WhatsApp notification:', error.message);
+    logger.error(`Error sending batch WhatsApp notification: ${error.message}`);
   }
 }
 
@@ -325,18 +338,8 @@ function formatTransactionMessage(transaction, accountId) {
   const emoji = transaction.amount >= 0 ? '💰' : '💸';
   const type = transaction.amount >= 0 ? 'PEMASUKAN' : 'PENGELUARAN';
   const amount = Math.abs(transaction.amount).toLocaleString('id-ID');
-  
-  return `${emoji} *TRANSAKSI BARU*
 
-📧 *Akun:* ${accountId}
-🏦 *Bank:* ${transaction.bank || 'Tidak diketahui'}
-📊 *Jenis:* ${type}
-💵 *Jumlah:* Rp ${amount}
-🏷️ *Kategori:* ${transaction.category}
-📝 *Deskripsi:* ${transaction.description}
-📅 *Tanggal:* ${transaction.date}
-
-_Diproses otomatis dari email_`;
+  return `${emoji} *TRANSAKSI BARU*\n\n📧 *Akun:* ${accountId}\n🏦 *Bank:* ${transaction.bank || 'Tidak diketahui'}\n📊 *Jenis:* ${type}\n💵 *Jumlah:* Rp ${amount}\n🏷️ *Kategori:* ${transaction.category}\n📝 *Deskripsi:* ${transaction.description}\n📅 *Tanggal:* ${transaction.date}\n\n_Diproses otomatis dari email_`;
 }
 
 /**
@@ -346,15 +349,7 @@ _Diproses otomatis dari email_`;
  * @returns {string} - Formatted message
  */
 function formatBatchMessage(count, accountId) {
-  return `📊 *LAPORAN TRANSAKSI*
-
-📧 *Akun:* ${accountId}
-🔢 *Jumlah Transaksi:* ${count}
-⏰ *Waktu:* ${new Date().toLocaleString('id-ID')}
-
-${count} transaksi baru telah diproses dan ditambahkan ke spreadsheet.
-
-_Diproses otomatis dari email_`;
+  return `📊 *LAPORAN TRANSAKSI*\n\n📧 *Akun:* ${accountId}\n🔢 *Jumlah Transaksi:* ${count}\n⏰ *Waktu:* ${new Date().toLocaleString('id-ID')}\n\n${count} transaksi baru telah diproses dan ditambahkan ke spreadsheet.\n\n_Diproses otomatis dari email_`;
 }
 
 /**
@@ -362,18 +357,25 @@ _Diproses otomatis dari email_`;
  * @returns {Promise<boolean>} - True if connection is successful
  */
 export async function testWhatsAppConnection() {
+  if (!CONFIG.ENABLE_WHATSAPP_NOTIFICATIONS) {
+    logger.debug('WhatsApp notifications are disabled; skipping connection test');
+    return false;
+  }
+
   try {
-    if (!whatsappClient || !isClientReady) {
-      logger.info('WhatsApp client not ready, initializing...');
-      await initializeWhatsApp();
+    await initializeWhatsApp();
+    const status = await fetchSessionStatus(ensureWAHAClient());
+    const connected = status?.status === 'CONNECTED';
+
+    if (connected) {
+      logger.success(`WhatsApp (WAHA) session connected: ${status.status}`);
+    } else {
+      logger.warning(`WhatsApp (WAHA) session status: ${status?.status || 'UNKNOWN'}`);
     }
-    
-    const info = await whatsappClient.getState();
-    logger.success(`WhatsApp client state: ${info}`);
-    return info === 'CONNECTED';
-    
+
+    return connected;
   } catch (error) {
-    logger.error('WhatsApp connection test failed:', error.message);
+    logger.error(`WhatsApp connection test failed: ${error.message}`);
     return false;
   }
 }
@@ -382,12 +384,7 @@ export async function testWhatsAppConnection() {
  * Gracefully close WhatsApp client
  */
 export async function closeWhatsApp() {
-  if (whatsappClient) {
-    try {
-      await whatsappClient.destroy();
-      logger.info('WhatsApp client closed');
-    } catch (error) {
-      logger.error('Error closing WhatsApp client:', error.message);
-    }
-  }
-} 
+  wahaClient = null;
+  sessionCache = null;
+  logger.info('Cleared WAHA client references. The remote WAHA session remains managed on the server.');
+}

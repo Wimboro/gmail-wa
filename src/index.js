@@ -113,17 +113,16 @@ export async function main() {
     
     // Initialize WhatsApp (if enabled) and keep it running
     if (CONFIG.ENABLE_WHATSAPP_NOTIFICATIONS) {
-      logger.info('Initializing WhatsApp client for continuous operation...');
-      logger.warning('⚠️  Please scan the QR code when it appears to enable WhatsApp notifications');
-      
+      logger.info('Initializing WAHA WhatsApp session for continuous operation...');
+
       await initializeWhatsApp();
-      
+
       whatsappReady = await testWhatsAppConnection();
       if (!whatsappReady) {
-        logger.warning('WhatsApp connection failed, notifications will be disabled');
-        logger.warning('You can restart the application to try WhatsApp setup again');
+        logger.warning('WAHA session is not connected yet. Open the WAHA dashboard and authenticate the session to enable notifications.');
+        logger.warning('You can restart the application after completing authentication if needed.');
       } else {
-        logger.success('📱 WhatsApp is ready and will remain connected!');
+        logger.success('📱 WAHA WhatsApp session connected. Notifications are enabled.');
       }
     } else {
       logger.info('WhatsApp notifications are disabled');
@@ -135,7 +134,7 @@ export async function main() {
     // Keep the application running
     logger.success('🎯 Application is now running continuously');
     logger.info(`📧 Checking emails every ${CONFIG.EMAIL_CHECK_INTERVAL_MINUTES} minute(s)`);
-    logger.info('📱 WhatsApp service remains active');
+    logger.info('📱 WAHA WhatsApp service remains active');
     logger.info('💡 Press Ctrl+C to stop gracefully');
     
     // Keep process alive
