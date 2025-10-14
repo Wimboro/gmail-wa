@@ -1,3 +1,4 @@
+import path from 'path';
 import dotenv from 'dotenv';
 
 // Load environment variables
@@ -16,7 +17,8 @@ export const SHEETS_SCOPES = [
 // File paths
 export const CREDENTIALS_FILE = 'credentials.json';
 export const SA_CREDENTIALS_FILE = 'sa-credentials.json';
-export const TOKEN_FILE_TEMPLATE = 'token_{}.json';
+const TOKEN_DIRECTORY = process.env.TOKEN_DIRECTORY || '.';
+export const TOKEN_FILE_TEMPLATE = path.join(TOKEN_DIRECTORY, 'token_{}.json');
 
 // Environment variables with defaults
 export const CONFIG = {

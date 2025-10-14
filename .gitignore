@@ -41,6 +41,7 @@ sa-credentials.json
 
 token_*.json
 token*.json
+tokens/
 
 # Misc
 .tmp/

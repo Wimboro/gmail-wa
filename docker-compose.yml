@@ -1,0 +1,13 @@
+services:
+  gmail-wa:
+    build: .
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+    volumes:
+      - ./credentials.json:/app/credentials.json:ro
+      - ./sa-credentials.json:/app/sa-credentials.json:ro
+      - ./tokens:/app/tokens
+    command: node run.js

@@ -36,14 +36,15 @@ npm run setup
    - `cp .env.example .env`
 2. Install dependencies with `npm install` (or `pnpm install`/`yarn install`).
 3. Run `npm test` to ensure the code compiles and exports correctly.
-4. Run `node run.js` once per Gmail inbox to print an authorization URL; paste the returned code and save the token as `token_<account>.json`.
+4. Create a writable directory for OAuth tokens (matches the default `TOKEN_DIRECTORY`): `mkdir -p tokens`.
+5. Run `node run.js` once per Gmail inbox to print an authorization URL; paste the returned code and save the token as `token_<account>.json` inside the `tokens/` directory.
 
 ## Configuration
 
 ### Required credentials
 - `credentials.json` – Google Cloud OAuth client used for Gmail access.
 - `sa-credentials.json` – service-account key for Google Sheets.
-- `token_<account>.json` – OAuth refresh/access tokens created per Gmail account on first authorization.
+- `token_<account>.json` – OAuth refresh/access tokens created per Gmail account on first authorization (stored in the directory defined by `TOKEN_DIRECTORY`, default `./tokens`).
 
 ### Environment variables
 ```env
@@ -72,6 +73,7 @@ BATCH_NOTIFICATION_THRESHOLD=5
 EMAIL_CHECK_INTERVAL_MINUTES=5
 PROCESSOR_USER_ID=email-processor-main
 NODE_ENV=development
+TOKEN_DIRECTORY=./tokens
 ```
 
 Phone numbers must be in international format without the leading `+` (e.g., `628123456789`). Share your spreadsheet with the service-account email found inside `sa-credentials.json`.
@@ -121,6 +123,7 @@ tests/                     # Node test runner smoke tests
 - **Docker / containers**: Copy the project into an image with Node 18+, mount credentials/tokens as secrets or bind mounts, and set the container command to `node run.js`.
 - **Systemd / services**: Wrap `node run.js` in a unit file, ensure the working directory has read/write access to tokens, and enable automatic restarts on failure.
 - Keep `credentials.json`, `sa-credentials.json`, and `token_*.json` outside the image when possible; mount them at runtime.
+- **Docker Compose**: Ensure `.env`, `credentials.json`, `sa-credentials.json`, and the `tokens/` directory exist, then run `docker compose up -d --build`. Compose maps credentials read-only and persists tokens under `./tokens`.
 
 ## Troubleshooting
 - **WAHA session not connected** – ensure `WAHA_BASE_URL`, `WAHA_API_KEY`, and `WAHA_SESSION_NAME` are correct, the WAHA server is running, and authenticate the session via the WAHA dashboard (QR scan) before rerunning.

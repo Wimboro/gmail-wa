@@ -1,0 +1,12 @@
+.git
+node_modules
+npm-debug.log
+logs
+.env
+.env.*
+token_*.json
+tokens
+credentials.json
+sa-credentials.json
+tests
+docker-compose.yml
