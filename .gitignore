@@ -19,6 +19,7 @@ pids
 # Env & local config
 .env
 .env.*
+!.env.example
 *.local
 
 # Build outputs

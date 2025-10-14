@@ -8,8 +8,7 @@
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
     "setup": "node setup.js",
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "test-genai": "node test-genai.js"
+    "test": "node --test tests"
   },
   "keywords": [
     "gmail",
@@ -20,7 +19,7 @@
     "financial-tracking"
   ],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "@google/genai": "^0.3.0",
     "axios": "^1.7.7",

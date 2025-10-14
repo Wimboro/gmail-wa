@@ -30,9 +30,13 @@ npm install
 npm run setup
 ```
 
-1. Download `credentials.json` (OAuth client) and `sa-credentials.json` (service account) into the project root.
-2. Copy `.env.example` to `.env`, then fill in Gmail accounts, Gemini key, spreadsheet ID, and WAHA settings.
-3. Run `node run.js` once per Gmail inbox to print an authorization URL; paste the returned code and save the token as `token_<account>.json`.
+1. Copy the templates and fill them with your own secrets:
+   - `cp credentials.json.template credentials.json`
+   - `cp sa-credentials.json.template sa-credentials.json`
+   - `cp .env.example .env`
+2. Install dependencies with `npm install` (or `pnpm install`/`yarn install`).
+3. Run `npm test` to ensure the code compiles and exports correctly.
+4. Run `node run.js` once per Gmail inbox to print an authorization URL; paste the returned code and save the token as `token_<account>.json`.
 
 ## Configuration
 
@@ -76,6 +80,10 @@ Phone numbers must be in international format without the leading `+` (e.g., `62
 - `node run.js` – preferred entry; ensures the WAHA session is connected before importing the main loop.
 - `node src/index.js` – runs the continuous processor directly (make sure WAHA is ready if notifications are enabled).
 
+## Testing
+- `npm test` – executes lightweight smoke tests via Node’s built-in runner to confirm that key modules import successfully.
+- Add deeper integration tests under `tests/` (the runner automatically discovers `*.test.mjs`).
+
 ## How It Works
 1. **Startup** – configuration is validated, Gemini is initialized, and WAHA connectivity is checked (if enabled).
 2. **Polling loop** – every `EMAIL_CHECK_INTERVAL_MINUTES`, each Gmail account authenticates via its token and fetches unread messages matching `GMAIL_SEARCH_QUERY`.
@@ -101,10 +109,18 @@ config/                    # ENV parsing, constants, bank metadata
 utils/                     # Logger utility
 run.js                     # Wrapper that waits for WAHA readiness
 setup.js                   # Bootstrap checklist (.env, credentials)
+tests/                     # Node test runner smoke tests
 ```
 
 ## Utilities & Tests
-Scripted smoke tests have been removed; add custom checks under a `tests/` directory or wire them into npm scripts as needed.
+- `npm test` – verifies that configuration, main entry, and processors load without throwing (no credentials required).
+- Add custom integration checks under `tests/` to exercise Gmail, Sheets, Gemini, or WAHA in your environment.
+
+## Deployment
+- **Local / PM2**: Run `npm install`, set up `.env`, then manage the process with `pm2 start run.js --name gmail-wa`.
+- **Docker / containers**: Copy the project into an image with Node 18+, mount credentials/tokens as secrets or bind mounts, and set the container command to `node run.js`.
+- **Systemd / services**: Wrap `node run.js` in a unit file, ensure the working directory has read/write access to tokens, and enable automatic restarts on failure.
+- Keep `credentials.json`, `sa-credentials.json`, and `token_*.json` outside the image when possible; mount them at runtime.
 
 ## Troubleshooting
 - **WAHA session not connected** – ensure `WAHA_BASE_URL`, `WAHA_API_KEY`, and `WAHA_SESSION_NAME` are correct, the WAHA server is running, and authenticate the session via the WAHA dashboard (QR scan) before rerunning.
@@ -119,12 +135,16 @@ Logs are timestamped; check the console output for detailed error messages and f
 - To add another notification channel, create a new service in `src/services/` and wire it into `emailProcessor.js`.
 - Follow ES module imports, prefer async/await, and wrap external calls in `try/catch` with informative logging.
 
-## Migration Guide
-Coming from the original Python implementation? Review [MIGRATION.md](MIGRATION.md) for a side-by-side comparison, configuration mapping, and step-by-step migration tips.
+## Security & Compliance
+- Never commit `credentials.json`, `sa-credentials.json`, `.env`, or `token_*.json`. They are ignored by Git, but double-check before opening pull requests.
+- Rotate OAuth tokens and API keys periodically; revoke and recreate them immediately if the files leak.
+- Limit spreadsheet access to the service account email and monitor WAHA usage from a secured host.
+- Treat processed transaction data as sensitive—enable disk encryption, restrict file permissions, and follow local privacy regulations.
 
-## Support & Security
+## Support
 1. Revisit this README and the troubleshooting section.
 2. Inspect the console log output for precise failure reasons.
-3. Double-check credentials, tokens, and WAHA connectivity.
+3. Double-check credentials, tokens, environment variables, and WAHA connectivity.
 
-This application handles personal financial information. Keep credentials secure, restrict access to generated tokens, and comply with applicable data-protection regulations.
+## License
+Released under the [MIT License](LICENSE). Contributions are welcome via pull requests—please include tests for new behaviours where possible.
