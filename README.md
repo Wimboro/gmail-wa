@@ -75,7 +75,6 @@ Phone numbers must be in international format without the leading `+` (e.g., `62
 ## Running the Processor
 - `node run.js` – preferred entry; ensures the WAHA session is connected before importing the main loop.
 - `node src/index.js` – runs the continuous processor directly (make sure WAHA is ready if notifications are enabled).
-- `node src/continuous.js` – alternative entry with a fixed 1-minute polling interval, useful for quick tests.
 
 ## How It Works
 1. **Startup** – configuration is validated, Gemini is initialized, and WAHA connectivity is checked (if enabled).
@@ -96,24 +95,16 @@ src/
 │   ├── gmailService.js           # Gmail queries, body extraction, labeling
 │   ├── sheetsService.js          # Spreadsheet I/O, dedupe, row formatting
 │   └── whatsappService.js        # WAHA client/session + notification logic
-├── index.js               # Main continuous runner
-└── continuous.js          # Alternate runner with fixed interval
+└── index.js               # Main continuous runner
 
 config/                    # ENV parsing, constants, bank metadata
 utils/                     # Logger utility
 run.js                     # Wrapper that waits for WAHA readiness
 setup.js                   # Bootstrap checklist (.env, credentials)
-fix-auth-quick.js          # Service-account troubleshooting helper
-test-*.js                  # Focused smoke/integration scripts
 ```
 
 ## Utilities & Tests
-- `node test-genai.js` – sanity-check Gemini API connectivity.
-- `node test-enhanced-gemini.js` – exercise enhanced prompts against sample emails.
-- `node test-categories.js` – verify category and transaction-type mapping.
-- `node test-data-structure.js` – confirm sheet headers, dedupe logic, and signed amounts.
-- `node test-whatsapp.js` / `node test-whatsapp-format.js` / `node test-group-simple.js` – validate WAHA configuration and message formatting.
-- `node fix-auth-quick.js` – diagnose `sa-credentials.json` issues and guide regeneration.
+Scripted smoke tests have been removed; add custom checks under a `tests/` directory or wire them into npm scripts as needed.
 
 ## Troubleshooting
 - **WAHA session not connected** – ensure `WAHA_BASE_URL`, `WAHA_API_KEY`, and `WAHA_SESSION_NAME` are correct, the WAHA server is running, and authenticate the session via the WAHA dashboard (QR scan) before rerunning.
