@@ -2,6 +2,26 @@
 
 A Node.js service that polls configured Gmail inboxes, extracts transaction details with Google Gemini, persists structured rows to Google Sheets, and pushes WhatsApp notifications through a WAHA (WhatsApp HTTP API) gateway.
 
+## Support This Project
+
+<p>
+  <a href="https://saweria.co/HiddenCyber">
+    <img src="https://asset.hiddencyber.online/donate-buttons/saweria.svg" alt="Donasi via Saweria" height="56">
+  </a>
+
+  <a href="https://support.hiddencyber.online">
+    <img src="https://asset.hiddencyber.online/donate-buttons/qris.svg" alt="Dukungan via QRIS" height="56">
+  </a>
+
+  <a href="https://ko-fi.com/hiddencyber">
+    <img src="https://asset.hiddencyber.online/donate-buttons/ko-fi.svg" alt="Ko-fi untuk HiddenCyber" height="56">
+  </a>
+
+  <a href="https://paypal.me/wimboro">
+    <img src="https://asset.hiddencyber.online/donate-buttons/paypal.svg" alt="Donasi via PayPal" height="56">
+  </a>
+</p>
+
 ## Features
 - 📧 **Multi-inbox polling** – authenticate several Gmail accounts and process unread financial messages on a schedule.
 - 🤖 **Enhanced Gemini parsing** – context-aware prompts interpret Indonesian banking emails, normalize amounts, banks, and categories, and fall back to a simpler parser when needed.
