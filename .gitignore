@@ -62,4 +62,5 @@ tokens/
 # Cloudflare Workers
 .wrangler/
 workers/.dev.vars
+workers/wrangler.toml
 workers/node_modules/
