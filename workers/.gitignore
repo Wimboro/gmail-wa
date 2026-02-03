@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+
+# Wrangler
+.wrangler/
+
+# Local secrets (DO NOT COMMIT!)
+.dev.vars
+
+# Build output
+dist/
+
+# TypeScript
+*.tsbuildinfo
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

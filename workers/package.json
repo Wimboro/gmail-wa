@@ -1,0 +1,28 @@
+{
+  "name": "gmail-wa-processor",
+  "version": "1.0.0",
+  "description": "Gmail to D1 processor with WhatsApp notifications - Cloudflare Workers",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail",
+    "kv:create": "wrangler kv namespace create OAUTH_TOKENS && wrangler kv namespace create CREDENTIALS",
+    "db:local": "wrangler d1 execute bebong-transactions --local --command",
+    "db:remote": "wrangler d1 execute bebong-transactions --command"
+  },
+  "keywords": [
+    "cloudflare-workers",
+    "gmail",
+    "d1",
+    "whatsapp",
+    "gemini-ai"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240903.0",
+    "typescript": "^5.5.0",
+    "wrangler": "^3.72.0"
+  }
+}

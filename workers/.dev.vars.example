@@ -1,0 +1,18 @@
+# Local development secrets
+# Copy this file to .dev.vars and fill in the values
+
+# Gemini API Key (required)
+GEMINI_API_KEY="your-gemini-api-key"
+
+# WAHA WhatsApp API (optional, for notifications)
+WAHA_BASE_URL="http://localhost:3000"
+WAHA_API_KEY="your-waha-api-key"
+
+# Gmail accounts to process (comma-separated)
+GMAIL_ACCOUNTS="your-email@gmail.com"
+
+# WhatsApp notification targets (comma-separated phone numbers)
+WHATSAPP_PHONE_NUMBERS="6281234567890"
+
+# WhatsApp group ID (optional, alternative to phone numbers)
+# WHATSAPP_GROUP_ID="123456789@g.us"

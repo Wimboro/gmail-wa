@@ -48,3 +48,18 @@ tokens/
 *.tgz
 .wwebjs_*
 .wwebjs_auth
+
+# AI Agent folders (local tools - not project code)
+.agent/
+.agents/
+.claude/
+.codex/
+.cursor/
+.factory/
+.gemini/
+.opencode/
+
+# Cloudflare Workers
+.wrangler/
+workers/.dev.vars
+workers/node_modules/
